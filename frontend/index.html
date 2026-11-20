@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify ML — Predictor de Popularidad</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #181818;
+      --card-hover: #242424;
+      --green: #1DB954;
+      --green-hover: #1ed760;
+      --text: #FFFFFF;
+      --muted: #B3B3B3;
+      --border: #2A2A2A;
+    }
+    * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body {
+      margin: 0; padding: 24px;
+      background: var(--bg); color: var(--text);
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 24px;
+    }
+    header h1 { margin: 0; font-size: 1.6rem; }
+    header span { color: var(--green); }
+    .badge-status {
+      font-size: 0.85rem; padding: 6px 12px; border-radius: 999px;
+      background: #1DB95422; color: var(--green); border: 1px solid var(--green);
+    }
+    .grid-main {
+      display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px;
+    }
+    @media (max-width: 850px) { .grid-main { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .card h2 { margin-top: 0; font-size: 1.15rem; color: var(--green); }
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 0.85rem; color: var(--muted);
+      display: flex; justify-content: space-between;
+    }
+    .field label strong { color: var(--text); }
+    input[type="number"], select {
+      background: #242424; border: 1px solid #383838; color: var(--text);
+      padding: 8px 10px; border-radius: 6px; font-size: 0.9rem;
+    }
+    input[type="range"] { accent-color: var(--green); cursor: pointer; }
+    .btn {
+      margin-top: 18px; width: 100%; padding: 12px;
+      background: var(--green); color: #000; font-weight: 700;
+      border: none; border-radius: 999px; font-size: 1rem; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--green-hover); }
+    .result-box {
+      text-align: center; padding: 20px; border-radius: 10px;
+      background: #202020; margin-bottom: 20px;
+    }
+    .score { font-size: 3.2rem; font-weight: 800; color: var(--green); margin: 4px 0; }
+    .hit-tag {
+      display: inline-block; padding: 5px 14px; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 600; margin-top: 6px;
+    }
+    .hit-yes { background: #1DB95433; color: var(--green); }
+    .hit-no { background: #ffffff15; color: var(--muted); }
+    .kpi-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .kpi {
+      background: #202020; padding: 12px; border-radius: 8px;
+      border-left: 3px solid var(--green);
+    }
+    .kpi small { color: var(--muted); display: block; font-size: 0.78rem; }
+    .kpi strong { font-size: 1.25rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎵 Spotify <span>ML</span> — Predictor & Equidad</h1>
+      <div id="api-status" class="badge-status">Conectando a API...</div>
+    </header>
+
+    <div class="grid-main">
+      <!-- FORMULARIO DE PREDICCIÓN -->
+      <section class="card">
+        <h2>Parámetros de la Canción</h2>
+        <form id="predict-form">
+          <div class="form-grid">
+            <div class="field">
+              <label>Género musical</label>
+              <select id="track_genre">
+                <option value="pop">pop</option>
+                <option value="reggaeton">reggaeton</option>
+                <option value="rock">rock</option>
+                <option value="latin">latin</option>
+                <option value="k-pop">k-pop</option>
+                <option value="dance">dance</option>
+                <option value="acoustic">acoustic</option>
+                <option value="mpb">mpb</option>
+                <option value="hip-hop">hip-hop</option>
+                <option value="chill">chill</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Contenido explícito</label>
+              <select id="explicit">
+                <option value="0">No (0)</option>
+                <option value="1">Sí (1)</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Danceability <strong id="val-danceability">0.73</strong></label>
+              <input type="range" id="danceability" min="0" max="1" step="0.01" value="0.73" />
+            </div>
+
+            <div class="field">
+              <label>Energy <strong id="val-energy">0.81</strong></label>
+              <input type="range" id="energy" min="0" max="1" step="0.01" value="0.81" />
+            </div>
+
+            <div class="field">
+              <label>Valence (positividad) <strong id="val-valence">0.65</strong></label>
+              <input type="range" id="valence" min="0" max="1" step="0.01" value="0.65" />
+            </div>
+
+            <div class="field">
+              <label>Acousticness <strong id="val-acousticness">0.12</strong></label>
+              <input type="range" id="acousticness" min="0" max="1" step="0.01" value="0.12" />
+            </div>
+
+            <div class="field">
+              <label>Speechiness <strong id="val-speechiness">0.06</strong></label>
+              <input type="range" id="speechiness" min="0" max="1" step="0.01" value="0.06" />
+            </div>
+
+            <div class="field">
+              <label>Instrumentalness <strong id="val-instrumentalness">0.00</strong></label>
+              <input type="range" id="instrumentalness" min="0" max="1" step="0.01" value="0.00" />
+            </div>
+
+            <div class="field">
+              <label>Liveness <strong id="val-liveness">0.15</strong></label>
+              <input type="range" id="liveness" min="0" max="1" step="0.01" value="0.15" />
+            </div>
+
+            <div class="field">
+              <label>Loudness (dB)</label>
+              <input type="number" id="loudness" step="0.1" value="-5.2" required />
+            </div>
+
+            <div class="field">
+              <label>Tempo (BPM)</label>
+              <input type="number" id="tempo" step="0.1" min="1" value="122.0" required />
+            </div>
+
+            <div class="field">
+              <label>Duración (ms)</label>
+              <input type="number" id="duration_ms" min="1000" value="210000" required />
+            </div>
+
+            <div class="field">
+              <label>Compás (time_signature)</label>
+              <input type="number" id="time_signature" min="3" max="7" value="4" required />
+            </div>
+          </div>
+
+          <button type="submit" class="btn">Predecir Popularidad</button>
+        </form>
+      </section>
+
+      <!-- RESULTADO + MÉTRICAS DE EQUIDAD -->
+      <section class="card">
+        <h2>Resultado de Inferencia</h2>
+        <div class="result-box">
+          <small style="color: var(--muted);">Popularidad Estimada (0 - 100)</small>
+          <div id="pred-score" class="score">--</div>
+          <div id="pred-hit" class="hit-tag hit-no">Esperando canción...</div>
+        </div>
+
+        <h2>KPIs del Modelo (XGBoost)</h2>
+        <div class="kpi-grid">
+          <div class="kpi">
+            <small>MAE Global</small>
+            <strong id="kpi-mae">--</strong>
+          </div>
+          <div class="kpi">
+            <small>R² Global</small>
+            <strong id="kpi-r2">--</strong>
+          </div>
+          <div class="kpi">
+            <small>Brecha Artistas (Cons. vs Emer.)</small>
+            <strong id="kpi-artistas">--</strong>
+          </div>
+          <div class="kpi">
+            <small>Brecha entre Géneros</small>
+            <strong id="kpi-generos">--</strong>
+          </div>
+        </div>
+        <p id="kpi-detalle" style="font-size: 0.82rem; color: var(--muted); margin-top: 14px;"></p>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    // Actualizar etiquetas de sliders en vivo
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+      slider.addEventListener("input", () => {
+        document.getElementById("val-" + slider.id).textContent = Number(slider.value).toFixed(2);
+      });
+    });
+
+    // Cargar métricas al abrir la página
+    async function cargarMetricas() {
+      try {
+        const res = await fetch(`${API_URL}/metricas`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
+        document.getElementById("api-status").textContent = "API Conectada";
+        document.getElementById("kpi-mae").textContent = data.mae_global;
+        document.getElementById("kpi-r2").textContent = data.r2_global;
+        document.getElementById("kpi-artistas").textContent = data.por_tipo_artista.brecha + " pts";
+        document.getElementById("kpi-generos").textContent = data.por_genero.brecha + " pts";
+        document.getElementById("kpi-detalle").textContent =
+          `Mejor género: ${data.por_genero.mejor_genero.nombre} (MAE ${data.por_genero.mejor_genero.mae}) · ` +
+          `Peor género: ${data.por_genero.peor_genero.nombre} (MAE ${data.por_genero.peor_genero.mae})`;
+
+        // Llenar el <select> dinámicamente con todos los géneros del modelo (ordenados A-Z)
+        const selectGenero = document.getElementById("track_genre");
+        const generos = Object.keys(data.por_genero.todos).sort();
+        selectGenero.innerHTML = "";
+        generos.forEach(g => {
+          const opt = document.createElement("option");
+          opt.value = g;
+          opt.textContent = g;
+          if (g === "pop") opt.selected = true; // deja 'pop' seleccionado por defecto
+          selectGenero.appendChild(opt);
+        });
+      } catch {
+        const status = document.getElementById("api-status");
+        status.textContent = "API Desconectada";
+        status.style.color = "#ff5555";
+        status.style.borderColor = "#ff5555";
+      }
+    }
+
+    
+
+    // Enviar formulario a POST /predict
+    document.getElementById("predict-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const payload = {
+        danceability: parseFloat(document.getElementById("danceability").value),
+        energy: parseFloat(document.getElementById("energy").value),
+        loudness: parseFloat(document.getElementById("loudness").value),
+        speechiness: parseFloat(document.getElementById("speechiness").value),
+        acousticness: parseFloat(document.getElementById("acousticness").value),
+        instrumentalness: parseFloat(document.getElementById("instrumentalness").value),
+        liveness: parseFloat(document.getElementById("liveness").value),
+        valence: parseFloat(document.getElementById("valence").value),
+        tempo: parseFloat(document.getElementById("tempo").value),
+        duration_ms: parseInt(document.getElementById("duration_ms").value),
+        time_signature: parseInt(document.getElementById("time_signature").value),
+        explicit: parseInt(document.getElementById("explicit").value),
+        track_genre: document.getElementById("track_genre").value
+      };
+
+      try {
+        const res = await fetch(`${API_URL}/predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        document.getElementById("pred-score").textContent = data.popularidad_predicha;
+        const hitEl = document.getElementById("pred-hit");
+        if (data.es_hit_potencial) {
+          hitEl.textContent = "🔥 HIT POTENCIAL (≥ 70)";
+          hitEl.className = "hit-tag hit-yes";
+        } else {
+          hitEl.textContent = "🎵 Popularidad Estándar (< 70)";
+          hitEl.className = "hit-tag hit-no";
+        }
+      } catch {
+        alert("No se pudo conectar con la API. Asegúrate de tener corriendo 'python main.py'.");
+      }
+    });
+
+    cargarMetricas();
+  </script>
+</body>
+</html>

@@ -4,11 +4,20 @@ import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Spotify Popularity ML API",
     description="API de inferencia (XGBoost) y métricas de equidad para predicción de popularidad en Spotify.",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Rutas de los artefactos generados por 02_train.py
