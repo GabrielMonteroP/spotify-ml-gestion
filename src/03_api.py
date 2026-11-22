@@ -24,13 +24,12 @@ app.add_middleware(
 RUTA_MODELO = "models/pipeline_xgboost.joblib"
 RUTA_METRICAS = "models/metricas_modelo.json"
 
-# Cargar el pipeline en memoria al iniciar
+
 if not os.path.exists(RUTA_MODELO):
     raise RuntimeError(f"No se encontró el modelo en {RUTA_MODELO}. Ejecuta src/02_train.py primero.")
 
 modelo = joblib.load(RUTA_MODELO)
 
-# DTO de entrada (mismas columnas que usó 02_train.py)
 class CancionInput(BaseModel):
     danceability: float = Field(..., ge=0.0, le=1.0, example=0.73)
     energy: float = Field(..., ge=0.0, le=1.0, example=0.81)
@@ -62,11 +61,11 @@ def obtener_metricas():
 
 @app.post("/predict")
 def predecir_popularidad(cancion: CancionInput):
-    # Convertir el JSON validado a DataFrame con las columnas exactas
+
     df_entrada = pd.DataFrame([cancion.model_dump()])
     
     prediccion = float(modelo.predict(df_entrada)[0])
-    # Asegurar que quede en el rango real de Spotify (0 a 100)
+
     prediccion = round(max(0.0, min(100.0, prediccion)), 2)
     
     return {

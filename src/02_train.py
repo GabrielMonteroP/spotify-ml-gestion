@@ -16,12 +16,9 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
     
     print(f"Cargando datos limpios desde {ruta_datos_limpios}...")
     df = pd.read_csv(ruta_datos_limpios)
-    
-    # 1. Clave de agrupación exacta de tu notebook (evita fugas por mayúsculas/espacios)
     df["grupo_cancion"] = (df["artists"].str.lower().str.strip() + "|" + 
                            df["track_name"].str.lower().str.strip())
     
-    # 1.5 Etiqueta auxiliar de tipo de artista (NO entra al modelo, solo para KPIs de equidad)
     UMBRAL_CONSOLIDADO = 10
     artista_principal = df["artists"].str.split(";").str[0].str.strip()
     n_canciones_artista = artista_principal.value_counts()
@@ -30,11 +27,9 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
         "Consolidado", "Emergente"
     )
     
-    # 2. Definir las columnas numéricas
     cols_num = ["danceability", "energy", "loudness", "speechiness", "acousticness",
                 "instrumentalness", "liveness", "valence", "tempo", "duration_ms", "time_signature"]
     
-    # XGBoost prefiere booleanos como 0 y 1
     if 'explicit' in df.columns:
         df['explicit'] = df['explicit'].astype(int)
         
@@ -42,7 +37,6 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
     grupos = df["grupo_cancion"]
     
     print("Separando datos con GroupShuffleSplit...")
-    # 3. División agrupada por canción (Lógica exacta de la EP3)
     gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
     idx_train, idx_test = next(gss.split(df, y, groups=grupos))
     
@@ -51,19 +45,18 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
     y_train = y.iloc[idx_train].copy()
     y_test = y.iloc[idx_test].copy()
     
-    # Verificación de fuga por consola
+
     solap_id = set(X_train_full["track_id"]) & set(X_test_full["track_id"])
     solap_grupo = set(X_train_full["grupo_cancion"]) & set(X_test_full["grupo_cancion"])
     print(f"Train: {len(X_train_full)} | Test: {len(X_test_full)}")
     print(f"Fuga -> track_id solapados: {len(solap_id)} | canciones solapadas: {len(solap_grupo)}")
     
-    # 4. Filtrar solo las columnas que el modelo necesita (botamos IDs, grupos, tipo_artista, etc.)
+
     columnas_modelo = cols_num + ["explicit", "track_genre"]
     X_train = X_train_full[columnas_modelo]
     X_test = X_test_full[columnas_modelo]
     
     print("Configurando el Pipeline Maestro...")
-    # 5. Preprocesamiento: Imputar, escalar y One-Hot
     pipeline_numerico = Pipeline([
         ("imputar", SimpleImputer(strategy="median")),
         ("escalar", StandardScaler())
@@ -77,7 +70,6 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
         remainder="passthrough"
     )
     
-    # 6. Pipeline final
     pipeline_final = Pipeline(steps=[
         ("preprocesamiento", preproceso),
         ("modelo", XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42))
@@ -86,14 +78,12 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
     print("Entrenando el Pipeline...")
     pipeline_final.fit(X_train, y_train)
     
-    # 7. Evaluación Global y por Subgrupos
     y_pred = pipeline_final.predict(X_test)
     mae_global = mean_absolute_error(y_test, y_pred)
     r2_global = r2_score(y_test, y_pred)
     print(f"\n=== MÉTRICAS GLOBALES ===")
     print(f"MAE Global: {mae_global:.3f} | R2 Global: {r2_global:.3f}")
     
-    # DataFrame auxiliar para calcular errores por subgrupo
     df_eval = pd.DataFrame({
         "y_real": y_test.values,
         "y_pred": y_pred,
@@ -102,7 +92,6 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
         "tipo_artista": X_test_full["tipo_artista"].values
     })
     
-    # 7.1 MAE por tipo de artista
     mae_artista = df_eval.groupby("tipo_artista")["error_abs"].mean().round(3)
     brecha_artista = round(float(mae_artista.max() - mae_artista.min()), 3)
     print("\n=== MAE POR TIPO DE ARTISTA ===")
@@ -110,7 +99,6 @@ def entrenar_y_guardar_modelo(ruta_datos_limpios, ruta_modelo_salida, ruta_metri
         print(f"  - {tipo}: {valor:.3f}")
     print(f"  -> Brecha (Consolidado vs Emergente): {brecha_artista:.3f}")
     
-    # 7.2 MAE por género musical
     mae_genero = df_eval.groupby("track_genre")["error_abs"].mean().sort_values().round(3)
     mejor_genero = mae_genero.index[0]
     peor_genero = mae_genero.index[-1]

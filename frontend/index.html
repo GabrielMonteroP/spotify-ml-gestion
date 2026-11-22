@@ -91,7 +91,6 @@
     </header>
 
     <div class="grid-main">
-      <!-- FORMULARIO DE PREDICCIÓN -->
       <section class="card">
         <h2>Parámetros de la Canción</h2>
         <form id="predict-form">
@@ -216,14 +215,12 @@
   <script>
     const API_URL = "http://127.0.0.1:8000";
 
-    // Actualizar etiquetas de sliders en vivo
     document.querySelectorAll('input[type="range"]').forEach(slider => {
       slider.addEventListener("input", () => {
         document.getElementById("val-" + slider.id).textContent = Number(slider.value).toFixed(2);
       });
     });
 
-    // Cargar métricas al abrir la página
     async function cargarMetricas() {
       try {
         const res = await fetch(`${API_URL}/metricas`);
@@ -239,7 +236,6 @@
           `Mejor género: ${data.por_genero.mejor_genero.nombre} (MAE ${data.por_genero.mejor_genero.mae}) · ` +
           `Peor género: ${data.por_genero.peor_genero.nombre} (MAE ${data.por_genero.peor_genero.mae})`;
 
-        // Llenar el <select> dinámicamente con todos los géneros del modelo (ordenados A-Z)
         const selectGenero = document.getElementById("track_genre");
         const generos = Object.keys(data.por_genero.todos).sort();
         selectGenero.innerHTML = "";
@@ -247,7 +243,7 @@
           const opt = document.createElement("option");
           opt.value = g;
           opt.textContent = g;
-          if (g === "pop") opt.selected = true; // deja 'pop' seleccionado por defecto
+          if (g === "pop") opt.selected = true;
           selectGenero.appendChild(opt);
         });
       } catch {
@@ -260,7 +256,6 @@
 
     
 
-    // Enviar formulario a POST /predict
     document.getElementById("predict-form").addEventListener("submit", async (e) => {
       e.preventDefault();
 
